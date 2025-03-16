@@ -25,6 +25,7 @@ PKG_INSTALL:=1
 PKG_BUILD_PARALLEL:=1
 
 include $(INCLUDE_DIR)/package.mk
+include $(INCLUDE_DIR)/nls.mk
 
 define Package/squid/Default
   SECTION:=net
@@ -36,7 +37,7 @@ endef
 define Package/squid
   $(call Package/squid/Default)
   MENU:=1
-  DEPENDS:=+libpthread +librt +libltdl +libstdcpp +libatomic +USE_GLIBC:libbsd
+  DEPENDS:=+libpthread +librt +libltdl +libstdcpp +libatomic +USE_GLIBC:libbsd +libpam $(ICONV_DEPENDS) $(INTL_DEPENDS)
   DEPENDS+= +SQUID_use-gnutls:libgnutls +SQUID_use-openssl:libopenssl
   DEPENDS+= +SQUID_with-libcap:libcap
   DEPENDS+= +SQUID_with-nettle:libnettle
@@ -73,13 +74,19 @@ CONFIGURE_ARGS += \
 	--datadir=/usr/share/squid \
 	--libexecdir=/usr/lib/squid \
 	--sysconfdir=/etc/squid \
+	--enable-shared \
 	--disable-static \
 	--enable-delay-pools \
+	--enable-kill-parent-hack \
+	--enable-ssl \
 	--enable-cache-digests \
 	--enable-linux-netfilter \
 	--disable-unlinkd \
 	--enable-x-accelerator-vary \
-	--disable-auto-locale \
+	--enable-translation \
+	--enable-auto-locale \
+	--with-dl \
+	--with-pthreads \
 	--enable-epoll \
 	--with-filedescriptors=2048 \
 	--disable-external-acl-helpers \

@@ -68,6 +68,18 @@ define Package/ddns-scripts-utils/description
 endef
 
 
+define Package/ddns-scripts-aliyun
+  $(call Package/ddns-scripts/Default)
+  TITLE:=Extension for aliyun.com
+  DEPENDS:=ddns-scripts +curl
+  PROVIDES:=ddns-scripts_aliyun_com
+endef
+
+define Package/ddns-scripts-aliyun/description
+  Dynamic DNS Client scripts extension for "aliyun.com".
+endef
+
+
 define Package/ddns-scripts-luadns
   $(call Package/ddns-scripts/Default)
   TITLE:=Extension for LuaDNS API v1
@@ -152,6 +164,18 @@ endef
 
 define Package/ddns-scripts-dnspod/description
   Dynamic DNS Client scripts extension for dnspod.cn API (require curl)
+endef
+
+
+define Package/ddns-scripts-dnspodcom
+  $(call Package/ddns-scripts/Default)
+  TITLE:=Extension for dnspod.com API.
+  DEPENDS:=ddns-scripts +curl
+  PROVIDES:=ddns-scripts_dnspod_com
+endef
+
+define Package/ddns-scripts-dnspodcom/description
+  Dynamic DNS Client scripts extension for dnspod.com API (require curl)
 endef
 
 
@@ -393,6 +417,7 @@ define Package/ddns-scripts-services/install
 		$(1)/usr/share/ddns/default
 
 	# Remove special services
+	rm $(1)/usr/share/ddns/default/aliyun.com.json
 	rm $(1)/usr/share/ddns/default/luadns.com-v1.json
 	rm $(1)/usr/share/ddns/default/cloudflare.com-v4.json
 	rm $(1)/usr/share/ddns/default/cloud.google.com-v1.json
@@ -400,6 +425,7 @@ define Package/ddns-scripts-services/install
 	rm $(1)/usr/share/ddns/default/godaddy.com-v1.json
 	rm $(1)/usr/share/ddns/default/digitalocean.com-v2.json
 	rm $(1)/usr/share/ddns/default/dnspod.cn.json
+	rm $(1)/usr/share/ddns/default/dnspod.com.json
 	rm $(1)/usr/share/ddns/default/dnspod.cn-v3.json
 	rm $(1)/usr/share/ddns/default/no-ip.com.json
 	rm $(1)/usr/share/ddns/default/bind-nsupdate.json
@@ -421,6 +447,25 @@ define Package/ddns-scripts-utils/install
 		$(1)/usr/lib/ddns/slaac.sh
 	$(INSTALL_BIN) ./samples/getlocalip_sample.sh \
 		$(1)/usr/lib/ddns/getlocalip.sh
+endef
+
+
+define Package/ddns-scripts-aliyun/install
+	$(INSTALL_DIR) $(1)/usr/lib/ddns
+	$(INSTALL_BIN) ./files/usr/lib/ddns/update_aliyun_com.sh \
+		$(1)/usr/lib/ddns
+
+	$(INSTALL_DIR) $(1)/usr/share/ddns/default
+	$(INSTALL_DATA) ./files/usr/share/ddns/default/aliyun.com.json \
+		$(1)/usr/share/ddns/default/
+endef
+
+define Package/ddns-scripts-aliyun/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	/etc/init.d/ddns stop
+fi
+exit 0
 endef
 
 
@@ -549,6 +594,25 @@ define Package/ddns-scripts-dnspod/install
 endef
 
 define Package/ddns-scripts-dnspod/prerm
+#!/bin/sh
+if [ -z "$${IPKG_INSTROOT}" ]; then
+	/etc/init.d/ddns stop
+fi
+exit 0
+endef
+
+
+define Package/ddns-scripts-dnspodcom/install
+	$(INSTALL_DIR) $(1)/usr/lib/ddns
+	$(INSTALL_BIN) ./files/usr/lib/ddns/update_dnspod_com.sh \
+		$(1)/usr/lib/ddns
+
+	$(INSTALL_DIR) $(1)/usr/share/ddns/default
+	$(INSTALL_DATA) ./files/usr/share/ddns/default/dnspod.com.json \
+		$(1)/usr/share/ddns/default/
+endef
+
+define Package/ddns-scripts-dnspodcom/prerm
 #!/bin/sh
 if [ -z "$${IPKG_INSTROOT}" ]; then
 	/etc/init.d/ddns stop
@@ -788,6 +852,7 @@ endef
 $(eval $(call BuildPackage,ddns-scripts))
 $(eval $(call BuildPackage,ddns-scripts-services))
 $(eval $(call BuildPackage,ddns-scripts-utils))
+$(eval $(call BuildPackage,ddns-scripts-aliyun))
 $(eval $(call BuildPackage,ddns-scripts-luadns))
 $(eval $(call BuildPackage,ddns-scripts-cloudflare))
 $(eval $(call BuildPackage,ddns-scripts-gcp))
@@ -795,6 +860,7 @@ $(eval $(call BuildPackage,ddns-scripts-freedns))
 $(eval $(call BuildPackage,ddns-scripts-godaddy))
 $(eval $(call BuildPackage,ddns-scripts-digitalocean))
 $(eval $(call BuildPackage,ddns-scripts-dnspod))
+$(eval $(call BuildPackage,ddns-scripts-dnspodcom))
 $(eval $(call BuildPackage,ddns-scripts-dnspod-v3))
 $(eval $(call BuildPackage,ddns-scripts-noip))
 $(eval $(call BuildPackage,ddns-scripts-nsupdate))

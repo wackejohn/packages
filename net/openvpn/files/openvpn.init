@@ -38,7 +38,9 @@ append_bools() {
 }
 
 append_params() {
-	local p; local v; local s="$1"; shift
+	local p; local m; local v; local s="$1"; shift
+	config_get m "$s" "route_metric"
+	[ -n "$m" ] && echo "route-metric $m" >> "/var/etc/openvpn-$s.conf"
 	for p in $*; do
 		config_get v "$s" "$p"
 		IFS="$LIST_SEP"

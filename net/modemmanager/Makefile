@@ -42,7 +42,6 @@ define Package/modemmanager
 	$(INTL_DEPENDS) \
 	+glib2 \
 	+dbus \
-	+ppp \
 	+MODEMMANAGER_WITH_MBIM:libmbim \
 	+MODEMMANAGER_WITH_QMI:libqmi \
 	+MODEMMANAGER_WITH_QRTR:libqrtr-glib
@@ -83,6 +82,7 @@ MESON_ARGS += \
 	-Dintrospection=false \
 	-Dman=false \
 	-Dbash_completion=false \
+	-Dplugin_qcom_soc=enabled \
 	-Dbuiltin_plugins=true \
 	-Db_lto=true \
 	-Dmbim=$(if $(CONFIG_MODEMMANAGER_WITH_MBIM),true,false) \
@@ -135,7 +135,7 @@ define Package/modemmanager/install
 		$(1)/usr/share/ModemManager
 
 	$(INSTALL_DIR) $(1)/usr/share/ModemManager/fcc-unlock.available.d
-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/usr/share/ModemManager/fcc-unlock.available.d/* $(1)/usr/share/ModemManager/fcc-unlock.available.d
+	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/share/ModemManager/fcc-unlock.available.d/* $(1)/usr/share/ModemManager/fcc-unlock.available.d
 
 	$(INSTALL_DIR) $(1)/etc/init.d
 	$(INSTALL_BIN) ./files/etc/init.d/modemmanager \
@@ -152,6 +152,10 @@ define Package/modemmanager/install
 	$(INSTALL_DIR) $(1)/etc/hotplug.d/wwan
 	$(INSTALL_DATA) ./files/etc/hotplug.d/wwan/25-modemmanager-wwan \
 		$(1)/etc/hotplug.d/wwan
+
+	$(INSTALL_DIR) $(1)/etc/hotplug.d/rpmsg
+	$(INSTALL_DATA) ./files/etc/hotplug.d/rpmsg/25-modemmanager-rpmsg \
+		$(1)/etc/hotplug.d/rpmsg
 
 ifeq ($(CONFIG_MODEMMANAGER_WITH_NETIFD),y)
 	$(INSTALL_DIR) $(1)/lib/netifd/proto

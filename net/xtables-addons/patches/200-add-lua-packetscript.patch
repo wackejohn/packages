@@ -771,7 +771,7 @@
 +
 --- /dev/null
 +++ b/extensions/LUA/controller.h
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,268 @@
 +/*
 + *	Copyright (C) 2010 University of Basel <http://cn.cs.unibas.ch/>
 + *	by Andre Graf <andre@dergraf.org>
@@ -997,6 +997,10 @@
 +
 +	void luaopen_nflib(lua_State *L);
 +#endif
++
++int32_t get_header_size(struct protocol_buf * prot_buf);
++struct field_changes * tftp_get_field_changes(lua_State *L, lua_packet_segment * seg);
++void free_dynamic_prot_buf(struct protocol_buf * prot_buf);
 +
 +void cleanup_dynamic_prot_bufs(void); /* freeing all dynamic prot bufs */
 +/**********************************************************************/

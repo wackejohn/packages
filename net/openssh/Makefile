@@ -181,7 +181,7 @@ CONFIGURE_ARGS += \
 	--without-bsd-auth \
 	--without-kerberos5 \
 	--with-stackprotect \
-	--with$(if $(CONFIG_OPENSSL_ENGINE),,out)-ssl-engine \
+	--without-ssl-engine \
 	--with$(if $(CONFIG_OPENSSH_LIBFIDO2),,out)-security-key-builtin \
 	--with-cflags-after=-fzero-call-used-regs=skip
 
