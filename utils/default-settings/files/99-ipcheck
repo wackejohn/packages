@@ -1,0 +1,27 @@
+#!/bin/sh
+. /lib/functions/network.sh
+[ "${ACTION}" = "ifup" ] || exit 0
+[ "${INTERFACE}" = "wan3" ] || [ "${INTERFACE}" = "wan4" ] || exit 0
+[ ! -f "/var/run/ipcheck_${INTERFACE}.pid" ] || exit 0
+echo $$> /var/run/ipcheck_${INTERFACE}.pid
+wan_cap=$(echo ${INTERFACE} | tr a-z A-Z)
+while true
+do
+	network_flush_cache
+	ip=$(network_get_ipaddr addr "${INTERFACE}"; echo "$addr" | cut -d "." -f 1)
+	ipfull=$(network_get_ipaddr addr "${INTERFACE}"; echo "$addr")
+	if [ "$ipfull" = "" ] || [ "$ipfull" = "0.0.0.0" ]; then
+		logger -t "ipcheck_hotplug" "$wan_cap Connection Not Ready, Waiting..."
+		sleep 5
+		continue
+	elif [ $(cat /etc/ipcheck/ipblacklist | grep -c "^$ip[\.]") == "1" ]; then
+		logger -t "ipcheck_hotplug" "$wan_cap NAT IP ($ipfull) Detected! Reconnecting ..."
+		ifup ${INTERFACE}
+		sleep 5
+		continue
+	else
+		logger -t "ipcheck_hotplug" "$wan_cap IP ($ipfull) is OK!"
+		rm -rf /var/run/ipcheck_${INTERFACE}.pid
+		break
+	fi
+done

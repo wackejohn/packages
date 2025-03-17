@@ -1,0 +1,32 @@
+#!/bin/sh /etc/rc.common
+# Copyright (c) 2011-2015 OpenWrt.org
+
+START=18
+
+start(){
+	/usr/bin/genipset.sh cmcc '/etc/mwan3ipset/cmcc.txt'
+	/usr/bin/genipset_ipv6.sh cmccv6 '/etc/mwan3ipset/cmcc6.txt'
+	/usr/sbin/ipset create gfwlist hash:ip hashsize 65536 maxelem 65536 family inet
+	/usr/sbin/ipset create gfwlist6 hash:net hashsize 65536 maxelem 65536 family inet6
+	/usr/sbin/ipset create ptlist hash:ip hashsize 65536 maxelem 65536 family inet
+	/usr/sbin/ipset create ptlist6 hash:net hashsize 65536 maxelem 65536 family inet6
+	/usr/sbin/ipset add gfwlist 67.198.55.0/24
+	/usr/sbin/ipset add gfwlist 91.108.4.0/22
+	/usr/sbin/ipset add gfwlist 91.108.8.0/22
+	/usr/sbin/ipset add gfwlist 91.108.12.0/22
+	/usr/sbin/ipset add gfwlist 91.108.16.0/22
+	/usr/sbin/ipset add gfwlist 91.108.20.0/22
+	/usr/sbin/ipset add gfwlist 91.108.56.0/22
+	/usr/sbin/ipset add gfwlist 95.161.64.0/20
+	/usr/sbin/ipset add gfwlist 109.239.140.0/24
+	/usr/sbin/ipset add gfwlist 149.154.160.0/22
+	/usr/sbin/ipset add gfwlist 149.154.164.0/22
+	/usr/sbin/ipset add gfwlist 149.154.168.0/22
+	/usr/sbin/ipset add gfwlist 149.154.172.0/22
+	/usr/sbin/ipset -! save cnnocmcc | sed '1d' > /tmp/cnnocmcc.txt
+	/usr/sbin/ipset -! save cnnocmccv6 | sed '1d' > /tmp/cnnocmccv6.txt
+	/usr/sbin/ipset -! save cmcc | sed '1d' > /tmp/cmcc.txt
+	/usr/sbin/ipset -! save cmccv6 | sed '1d' > /tmp/cmccv6.txt
+}
+
+

@@ -1,0 +1,254 @@
+#!/bin/sh
+[ "${INTERFACE}" = "wan1" ] || [ "${INTERFACE}" = "wan2" ] || [ "${INTERFACE}" = "wan3" ] || [ "${INTERFACE}" = "wan4" ] || exit 0
+mwan3_policy=wan12_345
+chinatelecom="wan1wan2"
+chinamobile="wan3wan4"
+cmipset=cmcc
+cmipset6=cmccv6
+
+if [ $(echo $chinatelecom | grep -c ${INTERFACE} ) = "1" ]; then
+	isp_interface=chinatelecom
+elif [ $(echo $chinamobile | grep -c ${INTERFACE} ) = "1" ]; then
+	isp_interface=chinamobile
+else
+	logger -t "mwan3-policy-sw" "Something wrong."
+fi
+
+if [ "${ACTION}" = "ifup" ]; then
+	case $isp_interface in
+		chinatelecom)
+		if [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "${INTERFACE} 1") != "0" ] || [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "$(echo $chinatelecom | sed 's/'${INTERFACE}'//') 1") != "0" ]; then
+			logger -t "mwan3-policy-sw" "ChinaTelecom interface ($(echo ${INTERFACE} | tr a-z A-Z)) online and ChinaTelecom policies detected, checking DNS and IPSET stauts ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 112.4.0.55) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile DNS removed detected, exiting ... "
+			else
+				logger -t "mwan3-policy-sw" "Removing ChinaMobile DNS ..."
+				uci del_list unbound.@zone[0].server=112.4.0.55
+				uci del_list unbound.@zone[0].server=221.131.143.69
+				uci del_list unbound.@zone[0].server=223.6.6.6
+				uci del_list unbound.@zone[0].server=114.114.115.115
+				uci del_list unbound.@zone[0].server=2409:8020:2000::88
+				uci del_list unbound.@zone[0].server=2409:8020:2000::8
+				uci commit unbound
+				/etc/init.d/unbound restart
+			fi
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removed detected, adding ChinaTelecom DNS ..."
+				uci add_list unbound.@zone[0].server=218.4.4.4
+				uci add_list unbound.@zone[0].server=218.2.2.2
+				uci add_list unbound.@zone[0].server=223.5.5.5
+				uci add_list unbound.@zone[0].server=114.114.114.114
+				uci add_list unbound.@zone[0].server=240e:5a::6666
+				uci add_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			else
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS existed detected, exiting ..."
+			fi
+		else
+			logger -t "mwan3-policy-sw" "ChinaTelecom interface ($(echo ${INTERFACE} | tr a-z A-Z)) online but the policies are not ready ..."            
+		fi
+		;;
+		chinamobile)
+		if [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "${INTERFACE} 1") != "0" ] && [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan1 1") = "0" ] && [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan2 1") = "0" ]; then
+			logger -t "mwan3-policy-sw" "ChinaMobile interface ($(echo ${INTERFACE} | tr a-z A-Z)) online and ChinaMobile policies detected, checking DNS and IPSET status ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removeded detected, exiting ... "
+			else
+				logger -t "mwan3-policy-sw" "Removing ChinaTelecom DNS ..."
+				uci del_list unbound.@zone[0].server=218.4.4.4
+				uci del_list unbound.@zone[0].server=218.2.2.2
+				uci del_list unbound.@zone[0].server=223.5.5.5
+				uci del_list unbound.@zone[0].server=114.114.114.114
+				uci del_list unbound.@zone[0].server=240e:5a::6666
+				uci del_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			fi
+			if [ $(ipset list $cmipset | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 removed detected, adding ChinaMobile IPSETv4 ..."
+				ipset -! restore < /tmp/cmcc.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 existed detected, exiting ..."
+			fi
+			if [ $(ipset list $cmipset6 | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected, adding ChinaMobile IPSETv6 ..."
+				ipset -! restore < /tmp/cmccv6.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected, exiting ..."
+			fi
+		else
+			logger -t "mwan3-policy-sw" "ChinaMobile interface ($(echo ${INTERFACE} | tr a-z A-Z)) online but ChinaTelecom policies detected, checking DNS and IPSET status ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 112.4.0.55) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile DNS removed detected, exiting ... "
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile DNS existed detected, removing ChinaMobile DNS ..."
+				uci del_list unbound.@zone[0].server=112.4.0.55
+				uci del_list unbound.@zone[0].server=221.131.143.69
+				uci del_list unbound.@zone[0].server=223.6.6.6
+				uci del_list unbound.@zone[0].server=114.114.115.115
+				uci del_list unbound.@zone[0].server=2409:8020:2000::88
+				uci del_list unbound.@zone[0].server=2409:8020:2000::8
+				uci commit unbound
+				/etc/init.d/unbound restart
+			fi
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removed detected, adding ChinaTelecom DNS ..."
+				uci add_list unbound.@zone[0].server=218.4.4.4
+				uci add_list unbound.@zone[0].server=218.2.2.2
+				uci add_list unbound.@zone[0].server=223.5.5.5
+				uci add_list unbound.@zone[0].server=114.114.114.114
+				uci add_list unbound.@zone[0].server=240e:5a::6666
+				uci add_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			else
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS existed detected, exiting ..."
+			fi
+			if [ $(ipset list $cmipset | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 removed detected, adding ChinaMobile IPSETv4 ..."
+				ipset -! restore < /tmp/cmcc.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 existed detected, exiting ..."
+			fi
+			if [ $(ipset list $cmipset6 | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected, adding ChinaMobile IPSETv6 ..."
+				ipset -! restore < /tmp/cmccv6.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 existed detected, exiting ..."
+			fi
+		fi
+		;;
+	esac
+fi
+
+if [ "${ACTION}" = "ifdown" ]; then
+	case $isp_interface in
+		chinatelecom)
+		sleep 15
+		if [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "$(echo $chinatelecom | sed 's/'${INTERFACE}'//') 1") != "0" ]; then
+			logger -t "mwan3-policy-sw" "ChinaTelecom interface ($(echo ${INTERFACE} | tr a-z A-Z)) offline but another ChinaTelecom interface is still online, ChinaTelecom policies should still working, exiting ..."
+		elif [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan3 1") != "0" ] || [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan4 1") != "0" ]; then
+			logger -t "mwan3-policy-sw" "All ChinaTelecom interfaces are offline, but ChinaMobile interfaces are online, checking DNS and IPSET status ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 112.4.0.55) = "0" ]; then
+				logger -t "mwan3-policy-sw" "Adding ChinaMobile DNS ... "
+				uci add_list unbound.@zone[0].server=112.4.0.55
+				uci add_list unbound.@zone[0].server=221.131.143.69
+				uci add_list unbound.@zone[0].server=223.6.6.6
+				uci add_list unbound.@zone[0].server=114.114.115.115
+				uci add_list unbound.@zone[0].server=2409:8020:2000::88
+				uci add_list unbound.@zone[0].server=2409:8020:2000::8
+				uci commit unbound
+				/etc/init.d/unbound restart
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile DNS existed detected, exiting ..."
+			fi
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removed detected, exiting ... "
+			else
+				logger -t "mwan3-policy-sw" "Removing ChinaTelecom DNS ..."
+				uci del_list unbound.@zone[0].server=218.4.4.4
+				uci del_list unbound.@zone[0].server=218.2.2.2
+				uci del_list unbound.@zone[0].server=223.5.5.5
+				uci del_list unbound.@zone[0].server=114.114.114.114
+				uci del_list unbound.@zone[0].server=240e:5a::6666
+				uci del_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			fi
+			if [ $(ipset list $cmipset | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 removed detected, adding ChinaMobile IPSETv4 ..."
+				ipset -! restore < /tmp/cmcc.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 existed detected, exiting ..."
+			fi
+			if [ $(ipset list $cmipset6 | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected, adding ChinaMobile IPSETv6 ..."
+				ipset -! restore < /tmp/cmccv6.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 existed detected, exiting ..."
+			fi
+		else
+			logger -t "mwan3-policy-sw" "All interfaces are offline ..."
+		fi
+		;;
+		chinamobile)
+		sleep 15
+		if [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan1 1" ) != "0" ] || [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "wan2 1") != "0" ]; then
+			logger -t "mwan3-policy-sw" "ChinaMobile interface ($(echo ${INTERFACE} | tr a-z A-Z)) offline but ChinaTelecom interfaces are still online, checking DNS and IPSET status ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removed detected, adding ChinaTelecom DNS ..."
+				uci add_list unbound.@zone[0].server=218.4.4.4
+				uci add_list unbound.@zone[0].server=218.2.2.2
+				uci add_list unbound.@zone[0].server=223.5.5.5
+				uci add_list unbound.@zone[0].server=114.114.114.114
+				uci add_list unbound.@zone[0].server=240e:5a::6666
+				uci add_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			else
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS existed detected, exiting ..."
+			fi
+			if [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "$(echo $chinamobile | sed 's/'${INTERFACE}'//') 1") = "0" ] ; then
+				logger -t "mwan3-policy-sw" "ChinaMobile interfaces are all offline, checking IPSET status ..."
+				if [ $(ipset list $cmipset | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') != "0" ]; then
+					logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 existed detected, removing ChinaMobile IPSETv4 ..."
+					ipset -! flush cmcc
+				else
+					logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 removed detected, exiting ..."
+				fi
+				if [ $(ipset list $cmipset6 | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') != "0" ]; then
+					logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 existed detected, removing ChinaMobile IPSETv6 ..."
+					ipset -! flush cmccv6
+				else
+					logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected exiting ..."
+				fi
+			else
+				logger -t "mwan3-policy-sw" "Another ChinaMobile interface ($(echo $(echo $chinamobile | sed 's/'${INTERFACE}'//') | tr a-z A-Z)) is still online, exiting ..."
+			fi
+		elif [ $(iptables -t mangle -w -S | grep mwan3_policy_$mw3_policy | grep -c "$(echo $chinamobile | sed 's/'${INTERFACE}'//') 1") != "0" ] ; then
+			logger -t "mwan3-policy-sw" "All ChinaTelecom interfaces are offline, but another ChinaMobile interface ($(echo $(echo $chinamobile | sed 's/'${INTERFACE}'//') | tr a-z A-Z)) is still online, checking DNS and IPSET status ..."
+			if [ $(uci show unbound.@zone[0].server | grep -c 112.4.0.55) = "0" ]; then
+				logger -t "mwan3-policy-sw" "Adding ChinaMobile DNS ... "
+				uci add_list unbound.@zone[0].server=112.4.0.55
+				uci add_list unbound.@zone[0].server=221.131.143.69
+				uci add_list unbound.@zone[0].server=223.6.6.6
+				uci add_list unbound.@zone[0].server=114.114.115.115
+				uci add_list unbound.@zone[0].server=2409:8020:2000::88
+				uci add_list unbound.@zone[0].server=2409:8020:2000::8
+				uci commit unbound
+				/etc/init.d/unbound restart
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile DNS removed detected, exiting ..."
+			fi
+			if [ $(uci show unbound.@zone[0].server | grep -c 218.4.4.4) = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaTelecom DNS removed detected, exiting ... "
+			else
+				logger -t "mwan3-policy-sw" "Removing ChinaTelecom DNS ..."
+				uci del_list unbound.@zone[0].server=218.4.4.4
+				uci del_list unbound.@zone[0].server=218.2.2.2
+				uci del_list unbound.@zone[0].server=223.5.5.5
+				uci del_list unbound.@zone[0].server=114.114.114.114
+				uci del_list unbound.@zone[0].server=240e:5a::6666
+				uci del_list unbound.@zone[0].server=240e:5b::6666
+				uci commit unbound
+				/etc/init.d/unbound restart
+			fi
+			if [ $(ipset list $cmipset | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 removed detected, adding ChinaMobile IPSETv4 ..."
+				ipset -! restore < /tmp/cmcc.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv4 existed detected, exiting ..."
+			fi
+			if [ $(ipset list $cmipset6 | grep "Number of entries" | cut -d : -f 2 | sed 's/ //g') = "0" ]; then
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 removed detected, adding ChinaMobile IPSETv6 ..."
+				ipset -! restore < /tmp/cmccv6.txt
+			else
+				logger -t "mwan3-policy-sw" "ChinaMobile IPSETv6 existed detected, exiting ..."
+			fi
+		else
+			logger -t "mwan3-policy-sw" "All interfaces are offline ..."
+		fi
+		;;
+	esac
+fi

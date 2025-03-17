@@ -1,0 +1,10 @@
+#!/bin/sh
+[ $(iptables -t mangle -L | grep -c mwan3) != "0" ] || exit 0
+listen_port=$(uci get network.vpn0.listen_port)
+sleep 1
+for i in $(seq 1 4)
+do
+	if [ $(iptables -t mangle -L mwan3_iface_in_wan$i | grep -c $listen_port) = "0" ]; then
+		iptables -t mangle -I mwan3_iface_in_wan$i 3 -p udp --dport $listen_port -j LOG --log-prefix "WG_WAN$i: " 
+	fi
+done

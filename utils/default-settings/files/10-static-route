@@ -1,0 +1,39 @@
+#!/bin/sh
+. /lib/functions/network.sh
+
+wan=`uci show network | grep interface | grep tr069 | grep -v vpn | grep -v route | cut -c 9- | cut -d = -f 1`
+
+[ "$wan" != "" ] || exit 0
+[ "${ACTION}" = "ifup" ] || exit 0
+[ "${INTERFACE}" = "$wan" ] || exit 0
+
+peer=`uci -q show network.@wireguard_obf_tr069vpn[0].endpoint_host | cut -d = -f 2 | sed $'s/\'//g'`
+peer_ip=`nslookup $peer | grep Address | cut -d " " -f 2 |grep -v Address`
+route_check=`ip route | grep "$peer_ip"`
+
+wan_cap=`echo "${INTERFACE}" | tr a-z A-Z`
+device=`network_get_device dev "${INTERFACE}"; echo $dev`
+ipaddr=`network_get_ipaddr addr "${INTERFACE}"; echo $addr`
+gateway=`network_get_gateway gw  "${INTERFACE}"; echo $gw`
+metric=`network_get_metric me "${INTERFACE}"; echo $me`
+
+while true
+do
+	if [ "$ipaddr" == "" ] || [ "$ipaddr" == "0.0.0.0" ]; then
+		logger -t "static_route_hotplug" "$wan_cap connection not ready, waiting..."
+		sleep 1
+		continue
+	elif [ "$gateway" == "" ] || [ "$gateway" == "0.0.0.0" ]; then
+		logger -t "static_route_hotplug" "$wan_cap connection not ready, waiting..."
+		sleep 1
+		continue
+	else
+		if [ "$route_check" == "0" ]; then
+			logger -t "static_route_hotplug" "$wan_cap connection ready, adding ($peer_ip) to static route ..."
+			ip route add $peer_ip via $gateway dev $device proto static metric $metric
+		else
+			logger -t "static_route_hotplug" "$wan_cap connection ready, ($peer_ip) static route existed ..."
+		fi
+		break
+	fi
+done
